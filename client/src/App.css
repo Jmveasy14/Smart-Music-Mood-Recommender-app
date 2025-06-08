@@ -3,7 +3,7 @@
 }
 
 .App-header {
-  background-color: #191414;
+  background-color: #121212; /* Darker background */
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -11,8 +11,10 @@
   justify-content: center;
   font-size: calc(10px + 2vmin);
   color: white;
+  padding: 20px;
 }
 
+/* --- Login Button --- */
 .spotify-button {
   background-color: #1DB954;
   color: white;
@@ -21,9 +23,73 @@
   text-decoration: none;
   font-weight: bold;
   font-size: 18px;
-  transition: background-color 0.3s ease;
+  transition: transform 0.2s ease, background-color 0.3s ease;
+  display: inline-block;
 }
 
 .spotify-button:hover {
   background-color: #1ed760;
+  transform: scale(1.05);
+}
+
+/* --- Playlist Display --- */
+.playlists-container {
+  width: 100%;
+  max-width: 1200px;
+}
+
+.playlists-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+  margin-top: 30px;
+  max-height: 70vh; /* Set a max height */
+  overflow-y: auto; /* Enable vertical scrolling */
+  padding: 10px;
+}
+
+.playlist-item {
+  background-color: #181818;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  text-align: left;
+}
+
+.playlist-item:hover {
+  background-color: #282828;
+}
+
+.playlist-item img {
+  width: 100%;
+  border-radius: 4px;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.playlist-item h3 {
+  font-size: 16px;
+  margin: 12px 0 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playlist-item p {
+  font-size: 14px;
+  color: #b3b3b3;
+  margin: 0;
+}
+
+.playlist-placeholder-image {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background-color: #282828;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 50px;
+  color: #b3b3b3;
 }
