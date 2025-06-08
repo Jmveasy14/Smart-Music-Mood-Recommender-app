@@ -16,11 +16,8 @@ const app = express();
 const PORT = process.env.PORT || 8888; // Use port from .env or default to 8888
 
 // --- Environment Variables ---
-// Make sure to create a .env file in your /server directory with these variables
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
-// The redirect URI must be whitelisted in your Spotify Developer Dashboard
-// IMPORTANT: Spotify no longer allows 'localhost'. Use the loopback IP '127.0.0.1'
 const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI;
 const FRONTEND_URI = process.env.FRONTEND_URI || 'http://127.0.0.1:3000';
 
@@ -28,37 +25,25 @@ const FRONTEND_URI = process.env.FRONTEND_URI || 'http://127.0.0.1:3000';
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser()); // Use cookie-parser middleware
+app.use(cookieParser());
 
-// --- API Routes ---
-
-/**
- * Generates a random string containing numbers and letters
- * @param  {number} length The length of the string
- * @return {string} The generated string
- */
+// --- Helper Functions ---
 const generateRandomString = (length) => {
-    return crypto
-        .randomBytes(Math.ceil(length / 2))
-        .toString('hex')
-        .slice(0, length);
+    return crypto.randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length);
 };
 
 const stateKey = 'spotify_auth_state';
 
+// --- API Routes ---
+
 /**
  * @route   GET /api/auth/login
  * @desc    Initiates the Spotify OAuth Authorization Code Flow.
- * Redirects the user to the Spotify authorization page.
- * @access  Public
  */
 app.get('/api/auth/login', (req, res) => {
     const state = generateRandomString(16);
     res.cookie(stateKey, state);
-
-    // The permissions our app needs
     const scope = 'user-read-private user-read-email playlist-read-private playlist-read-collaborative';
-
     const authUrl = 'https://accounts.spotify.com/authorize?' +
         querystring.stringify({
             response_type: 'code',
@@ -67,16 +52,12 @@ app.get('/api/auth/login', (req, res) => {
             redirect_uri: SPOTIFY_REDIRECT_URI,
             state: state
         });
-    
-    // Redirect to Spotify's authorization page
     res.redirect(authUrl);
 });
 
 /**
  * @route   GET /api/auth/callback
  * @desc    The route Spotify redirects to after user authorization.
- * Exchanges the authorization code for an access token.
- * @access  Public
  */
 app.get('/api/auth/callback', async (req, res) => {
     const code = req.query.code || null;
@@ -84,7 +65,6 @@ app.get('/api/auth/callback', async (req, res) => {
     const storedState = req.cookies ? req.cookies[stateKey] : null;
 
     if (state === null || state !== storedState) {
-        // State mismatch, likely a security risk (CSRF attack)
         res.redirect(`${FRONTEND_URI}/#` + querystring.stringify({ error: 'state_mismatch' }));
     } else {
         res.clearCookie(stateKey);
@@ -100,27 +80,50 @@ app.get('/api/auth/callback', async (req, res) => {
                 'Authorization': 'Basic ' + (Buffer.from(SPOTIFY_CLIENT_ID + ':' + SPOTIFY_CLIENT_SECRET).toString('base64')),
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
-            json: true
         };
 
         try {
             const response = await axios(authOptions);
             const { access_token, refresh_token, expires_in } = response.data;
-            
-            // Pass tokens to the frontend via query parameters
             res.redirect(`${FRONTEND_URI}/#` +
                 querystring.stringify({
                     access_token: access_token,
                     refresh_token: refresh_token,
                     expires_in: expires_in
                 }));
-
         } catch (error) {
             console.error("Error exchanging code for token:", error.response ? error.response.data : error.message);
             res.redirect(`${FRONTEND_URI}/#` + querystring.stringify({ error: 'invalid_token' }));
         }
     }
 });
+
+/**
+ * @route   GET /api/playlists
+ * @desc    Fetches the current user's playlists from Spotify.
+ * @access  Private (requires access token)
+ */
+app.get('/api/playlists', async (req, res) => {
+    // The access token is expected to be in the Authorization header
+    const token = req.headers.authorization; // "Bearer <token>"
+
+    if (!token) {
+        return res.status(401).json({ error: 'Authorization token not provided.' });
+    }
+
+    try {
+        const response = await axios.get('https://api.spotify.com/v1/me/playlists', {
+            headers: {
+                'Authorization': token // Pass the "Bearer <token>" string directly
+            }
+        });
+        res.status(200).json(response.data);
+    } catch (error) {
+        console.error("Error fetching playlists:", error.response ? error.response.data : error.message);
+        res.status(error.response.status || 500).json({ error: 'Failed to fetch playlists from Spotify.' });
+    }
+});
+
 
 // A simple test route
 app.get('/', (req, res) => {
