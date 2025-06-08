@@ -2,17 +2,22 @@
 
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import axios from 'axios'; // Import axios to make API calls
+import axios from 'axios';
 
 function App() {
-  // State to hold the access token
+  // State for authentication & data
   const [accessToken, setAccessToken] = useState(null);
-  // State to hold the playlists
   const [playlists, setPlaylists] = useState([]);
-  // State for loading status
-  const [loading, setLoading] = useState(false);
+  const [analysisData, setAnalysisData] = useState(null);
 
-  // This effect runs once to get the token from the URL
+  // State for UI control
+  const [appState, setAppState] = useState('login'); // 'login', 'playlists', 'analyzing', 'results'
+  const [loadingMessage, setLoadingMessage] = useState('');
+
+
+  // --- Effects ---
+
+  // On mount, check for access token in URL
   useEffect(() => {
     const hash = window.location.hash
       .substring(1)
@@ -29,58 +34,71 @@ function App() {
 
     if (hash.access_token) {
       setAccessToken(hash.access_token);
+      setAppState('playlists');
     }
   }, []);
 
-  // This effect runs whenever the accessToken changes
+  // When we get an access token, fetch the user's playlists
   useEffect(() => {
-    // If we don't have a token, do nothing
-    if (!accessToken) return;
+    if (appState !== 'playlists' || !accessToken) return;
 
-    // This is an async function to fetch playlists
     const fetchPlaylists = async () => {
-      setLoading(true);
+      setLoadingMessage('Loading your playlists...');
       try {
         const response = await axios.get('http://127.0.0.1:8888/api/playlists', {
-          headers: {
-            // We send the token in the Authorization header
-            'Authorization': `Bearer ${accessToken}`
-          }
+          headers: { 'Authorization': `Bearer ${accessToken}` }
         });
-        setPlaylists(response.data.items); // Spotify nests playlists in the 'items' array
+        setPlaylists(response.data.items);
       } catch (error) {
         console.error("Error fetching playlists:", error);
       }
-      setLoading(false);
+      setLoadingMessage('');
     };
 
     fetchPlaylists();
-  }, [accessToken]); // The dependency array ensures this runs when accessToken is set
+  }, [appState, accessToken]);
 
-  return (
-    <div className="App">
-      <header className="App-header">
-        <h1>VibeCast</h1>
-        
-        {/* Conditional rendering based on login status */}
-        {!accessToken ? (
-          // If not logged in, show the login button
-          <div>
-            <p>Forecast your vibe. Find your next move.</p>
-            <a className="spotify-button" href="http://127.0.0.1:8888/api/auth/login">
-              ♫ Connect with Spotify
-            </a>
-          </div>
-        ) : (
-          // If logged in, show the playlists
+
+  // --- Handlers ---
+
+  const handlePlaylistClick = async (playlist) => {
+    if (!accessToken) return;
+
+    setAppState('analyzing');
+    setLoadingMessage(`Analyzing "${playlist.name}"...`);
+
+    // In a real app, you'd show a sequence of messages
+    // setTimeout(() => setLoadingMessage('Reading the rhythm...'), 1500);
+    // setTimeout(() => setLoadingMessage('Decoding the lyrics...'), 3000);
+    // setTimeout(() => setLoadingMessage('Casting the vibe...'), 4500);
+
+    try {
+        const response = await axios.get(`http://127.0.0.1:8888/api/playlist/${playlist.id}`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        setAnalysisData(response.data);
+        console.log("Analysis Data Received:", response.data); // For testing
+        setAppState('results'); // Move to results page
+    } catch (error) {
+        console.error("Error analyzing playlist:", error);
+        setAppState('playlists'); // Go back to playlists on error
+    }
+    setLoadingMessage('');
+  };
+
+
+  // --- Render Logic ---
+
+  const renderContent = () => {
+    switch (appState) {
+      case 'playlists':
+        return (
           <div className="playlists-container">
             <h2>Choose a Playlist to Analyze</h2>
-            {loading ? (
-              <p>Loading your playlists...</p>
-            ) : (
+            {loadingMessage ? <p>{loadingMessage}</p> : (
               <div className="playlists-grid">
                 {playlists.map((playlist) => (
-                  <div key={playlist.id} className="playlist-item">
+                  <div key={playlist.id} className="playlist-item" onClick={() => handlePlaylistClick(playlist)}>
                     {playlist.images[0] ? (
                       <img src={playlist.images[0].url} alt={`${playlist.name} cover`} />
                     ) : (
@@ -93,10 +111,47 @@ function App() {
               </div>
             )}
           </div>
-        )}
+        );
+
+      case 'analyzing':
+        return (
+          <div className="analyzing-container">
+            <div className="spinner"></div>
+            <p className="loading-text">{loadingMessage}</p>
+          </div>
+        );
+      
+      case 'results':
+          // Placeholder for the results screen
+          return (
+              <div>
+                  <h2>Analysis Complete!</h2>
+                  <p>Check the console for the audio features data.</p>
+                  <button className="spotify-button" onClick={() => setAppState('playlists')}>Analyze Another</button>
+              </div>
+          );
+
+      default: // 'login' state
+        return (
+          <div>
+            <p>Forecast your vibe. Find your next move.</p>
+            <a className="spotify-button" href="http://127.0.0.1:8888/api/auth/login">
+              ♫ Connect with Spotify
+            </a>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="App">
+      <header className="App-header">
+        <h1>VibeCast</h1>
+        {renderContent()}
       </header>
     </div>
   );
 }
 
 export default App;
+
