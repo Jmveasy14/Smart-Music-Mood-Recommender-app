@@ -6,7 +6,6 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const querystring = require('querystring');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
@@ -20,6 +19,9 @@ const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI;
 const FRONTEND_URI = process.env.FRONTEND_URI || 'http://127.0.0.1:3000';
+// Add your OpenAI API Key to your .env file
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
 
 // --- Middleware ---
 app.use(cors());
@@ -33,22 +35,23 @@ const generateRandomString = (length) => {
 };
 const stateKey = 'spotify_auth_state';
 
-// --- API Routes ---
+// --- API Routes (Authentication and Playlist List - Unchanged) ---
 
 app.get('/api/auth/login', (req, res) => {
     const state = generateRandomString(16);
     res.cookie(stateKey, state);
     const scope = 'user-read-private user-read-email playlist-read-private playlist-read-collaborative';
     
-    res.redirect('https://accounts.spotify.com/authorize?' +
-        querystring.stringify({
-            response_type: 'code',
-            client_id: SPOTIFY_CLIENT_ID,
-            scope: scope,
-            redirect_uri: SPOTIFY_REDIRECT_URI,
-            state: state,
-            show_dialog: true // --- NEW: Force permission dialog every time for debugging ---
-        }));
+    const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: SPOTIFY_CLIENT_ID,
+        scope: scope,
+        redirect_uri: SPOTIFY_REDIRECT_URI,
+        state: state,
+        show_dialog: true
+    });
+    
+    res.redirect(`https://accounts.spotify.com/authorize?${params.toString()}`);
 });
 
 app.get('/api/auth/callback', async (req, res) => {
@@ -60,25 +63,31 @@ app.get('/api/auth/callback', async (req, res) => {
         return res.redirect(`${FRONTEND_URI}/#?error=state_mismatch`);
     }
     res.clearCookie(stateKey);
+
     try {
+        const tokenParams = new URLSearchParams();
+        tokenParams.append('grant_type', 'authorization_code');
+        tokenParams.append('code', code);
+        tokenParams.append('redirect_uri', SPOTIFY_REDIRECT_URI);
+
         const response = await axios({
             method: 'post',
             url: 'https://accounts.spotify.com/api/token',
-            data: querystring.stringify({
-                grant_type: 'authorization_code',
-                code: code,
-                redirect_uri: SPOTIFY_REDIRECT_URI
-            }),
+            data: tokenParams,
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'Authorization': 'Basic ' + (Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')),
             }
         });
+        
         const { access_token, refresh_token, expires_in } = response.data;
-        res.redirect(`${FRONTEND_URI}/#` + querystring.stringify({ access_token, refresh_token, expires_in }));
+        const redirectParams = new URLSearchParams({ access_token, refresh_token, expires_in });
+        res.redirect(`${FRONTEND_URI}/#${redirectParams.toString()}`);
+
     } catch (error) {
-        console.error("Error in /api/auth/callback:", error);
-        res.redirect(`${FRONTEND_URI}/#?error=invalid_token`);
+        console.error("Error in /api/auth/callback:", error.response ? error.response.data : error.message);
+        const redirectParams = new URLSearchParams({ error: 'invalid_token' });
+        res.redirect(`${FRONTEND_URI}/#${redirectParams.toString()}`);
     }
 });
 
@@ -95,6 +104,11 @@ app.get('/api/playlists', async (req, res) => {
 });
 
 
+/**
+ * @route   GET /api/playlist/:id
+ * @desc    (PIVOTED) Fetches tracks and prepares for lyrical analysis.
+ * @access  Private (requires access token)
+ */
 app.get('/api/playlist/:id', async (req, res) => {
     const token = req.headers.authorization;
     const playlistId = req.params.id;
@@ -102,59 +116,39 @@ app.get('/api/playlist/:id', async (req, res) => {
     if (!token) return res.status(401).json({ error: 'Authorization token not provided.' });
 
     try {
+        // Step 1: Fetch tracks with their names and artists
         let allTracks = [];
-        let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(track(id)),next`;
+        // Updated fields to get the data we need for lyrical analysis
+        const fields = 'items(track(id,name,artists(name))),next';
+        let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=${encodeURIComponent(fields)}`;
 
         while (nextUrl) {
             const tracksResponse = await axios.get(nextUrl, { headers: { 'Authorization': token } });
-            allTracks = [...allTracks, ...tracksResponse.data.items.map(item => item.track).filter(t => t && t.id)];
+            const tracks = tracksResponse.data.items
+                .map(item => item.track)
+                .filter(track => track && track.id); 
+            allTracks = [...allTracks, ...tracks];
             nextUrl = tracksResponse.data.next;
         }
 
-        const trackIds = allTracks.map(track => track.id);
+        // --- REMOVED THE FAILING AUDIO FEATURES CALL ---
 
-        let allAudioFeatures = [];
-        for (let i = 0; i < trackIds.length; i += 100) {
-            const batchIds = trackIds.slice(i, i + 100);
-            const featuresResponse = await axios.get(`https://api.spotify.com/v1/audio-features?ids=${batchIds.join(',')}`, { headers: { 'Authorization': token } });
-            allAudioFeatures = [...allAudioFeatures, ...featuresResponse.data.audio_features.filter(f => f)];
-        }
-
-        if (allAudioFeatures.length === 0) {
-            return res.status(200).json({ error: "No audio features found for this playlist." });
-        }
+        // Step 2: (Placeholder) Prepare for OpenAI Lyrical Analysis
+        // For now, we will just return a temporary success message and the track list
+        // In the next step, we will integrate OpenAI here.
         
-        const featureAverages = {
-            danceability: allAudioFeatures.reduce((sum, f) => sum + f.danceability, 0) / allAudioFeatures.length,
-            energy: allAudioFeatures.reduce((sum, f) => sum + f.energy, 0) / allAudioFeatures.length,
-            valence: allAudioFeatures.reduce((sum, f) => sum + f.valence, 0) / allAudioFeatures.length,
-            tempo: allAudioFeatures.reduce((sum, f) => sum + f.tempo, 0) / allAudioFeatures.length,
-            acousticness: allAudioFeatures.reduce((sum, f) => sum + f.acousticness, 0) / allAudioFeatures.length,
+        const temporaryMoodProfile = {
+            primaryMood: "Lyrical Analysis Pending",
+            tags: allTracks.slice(0, 3).map(t => t.name), // Show first 3 track names as example tags
+            averages: { // Dummy data to prevent frontend from breaking
+                energy: 50,
+                happiness: 50,
+                danceability: 50,
+                tempo: 120
+            }
         };
 
-        const moodProfile = {
-            primaryMood: '',
-            tags: [],
-            averages: featureAverages
-        };
-
-        if (featureAverages.valence > 0.65 && featureAverages.energy > 0.65) {
-            moodProfile.primaryMood = "Euphoric & Energetic";
-        } else if (featureAverages.valence > 0.5 && featureAverages.energy < 0.5) {
-            moodProfile.primaryMood = "Happy & Chill";
-        } else if (featureAverages.valence < 0.35 && featureAverages.energy < 0.4) {
-            moodProfile.primaryMood = "Melancholic & Reflective";
-        } else if (featureAverages.valence < 0.5 && featureAverages.energy > 0.7) {
-            moodProfile.primaryMood = "Anxious & Intense";
-        } else {
-            moodProfile.primaryMood = "Neutral";
-        }
-        
-        if (featureAverages.danceability > 0.7) moodProfile.tags.push("Highly Danceable");
-        if (featureAverages.tempo > 140) moodProfile.tags.push("Fast-Paced");
-        if (featureAverages.acousticness > 0.7) moodProfile.tags.push("Acoustic");
-
-        res.status(200).json(moodProfile);
+        res.status(200).json(temporaryMoodProfile);
 
     } catch (error) {
         console.error("--- DETAILED PLAYLIST ANALYSIS ERROR ---");
