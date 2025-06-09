@@ -6,7 +6,7 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const querystring = require('querystring'); // CORRECTED: Was a string, now correctly requires the module
+const querystring = require('querystring');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
@@ -40,7 +40,7 @@ app.get('/api/auth/login', (req, res) => {
     res.cookie(stateKey, state);
     const scope = 'user-read-private user-read-email playlist-read-private playlist-read-collaborative';
     res.redirect('https://accounts.spotify.com/authorize?' +
-        querystring.stringify({ // CORRECTED: Uses the correctly imported module
+        querystring.stringify({
             response_type: 'code',
             client_id: SPOTIFY_CLIENT_ID,
             scope: scope,
@@ -62,7 +62,7 @@ app.get('/api/auth/callback', async (req, res) => {
         const response = await axios({
             method: 'post',
             url: 'https://accounts.spotify.com/api/token',
-            data: querystring.stringify({ // CORRECTED: Uses the correctly imported module
+            data: querystring.stringify({
                 grant_type: 'authorization_code',
                 code: code,
                 redirect_uri: SPOTIFY_REDIRECT_URI
@@ -73,7 +73,7 @@ app.get('/api/auth/callback', async (req, res) => {
             }
         });
         const { access_token, refresh_token, expires_in } = response.data;
-        res.redirect(`${FRONTEND_URI}/#` + querystring.stringify({ access_token, refresh_token, expires_in })); // CORRECTED
+        res.redirect(`${FRONTEND_URI}/#` + querystring.stringify({ access_token, refresh_token, expires_in }));
     } catch (error) {
         console.error(error);
         res.redirect(`${FRONTEND_URI}/#?error=invalid_token`);
@@ -154,7 +154,18 @@ app.get('/api/playlist/:id', async (req, res) => {
         res.status(200).json(moodProfile);
 
     } catch (error) {
-        console.error("Error analyzing playlist:", error.response ? error.response.data : error.message);
+        // --- NEW: Enhanced Error Logging ---
+        console.error("--- DETAILED PLAYLIST ANALYSIS ERROR ---");
+        if (error.response) {
+            console.error("Data:", error.response.data);
+            console.error("Status:", error.response.status);
+            console.error("Headers:", error.response.headers);
+        } else if (error.request) {
+            console.error("Request:", error.request);
+        } else {
+            console.error("Error Message:", error.message);
+        }
+        console.error("--- END OF ERROR ---");
         res.status(error.response?.status || 500).json({ error: 'Failed to analyze playlist.' });
     }
 });
