@@ -4,6 +4,14 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import axios from 'axios';
 
+// A simple component to render a single stat
+const Stat = ({ label, value }) => (
+  <div className="stat-item">
+    <div className="stat-value">{value}</div>
+    <div className="stat-label">{label}</div>
+  </div>
+);
+
 function App() {
   // State for authentication & data
   const [accessToken, setAccessToken] = useState(null);
@@ -13,7 +21,6 @@ function App() {
   // State for UI control
   const [appState, setAppState] = useState('login'); // 'login', 'playlists', 'analyzing', 'results'
   const [loadingMessage, setLoadingMessage] = useState('');
-
 
   // --- Effects ---
 
@@ -38,7 +45,7 @@ function App() {
     }
   }, []);
 
-  // When we get an access token, fetch the user's playlists
+  // When appState changes to 'playlists', fetch the user's playlists
   useEffect(() => {
     if (appState !== 'playlists' || !accessToken) return;
 
@@ -66,25 +73,24 @@ function App() {
 
     setAppState('analyzing');
     setLoadingMessage(`Analyzing "${playlist.name}"...`);
-
-    // In a real app, you'd show a sequence of messages
-    // setTimeout(() => setLoadingMessage('Reading the rhythm...'), 1500);
-    // setTimeout(() => setLoadingMessage('Decoding the lyrics...'), 3000);
-    // setTimeout(() => setLoadingMessage('Casting the vibe...'), 4500);
-
+    
     try {
         const response = await axios.get(`http://127.0.0.1:8888/api/playlist/${playlist.id}`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         setAnalysisData(response.data);
-        console.log("Analysis Data Received:", response.data); // For testing
-        setAppState('results'); // Move to results page
+        setAppState('results'); 
     } catch (error) {
         console.error("Error analyzing playlist:", error);
-        setAppState('playlists'); // Go back to playlists on error
+        setAppState('playlists');
     }
     setLoadingMessage('');
   };
+
+  const handleAnalyzeAnother = () => {
+      setAnalysisData(null);
+      setAppState('playlists');
+  }
 
 
   // --- Render Logic ---
@@ -122,12 +128,25 @@ function App() {
         );
       
       case 'results':
-          // Placeholder for the results screen
+          if (!analysisData) {
+              return <p>No analysis data available.</p>;
+          }
           return (
-              <div>
-                  <h2>Analysis Complete!</h2>
-                  <p>Check the console for the audio features data.</p>
-                  <button className="spotify-button" onClick={() => setAppState('playlists')}>Analyze Another</button>
+              <div className="results-container">
+                  <h2>The VibeCast is...</h2>
+                  <div className="mood-display">
+                    <p className="primary-mood">{analysisData.primaryMood}</p>
+                    <div className="tags-container">
+                        {analysisData.tags.map(tag => <span key={tag} className="mood-tag">{tag}</span>)}
+                    </div>
+                  </div>
+                  <div className="stats-container">
+                    <Stat label="Energy" value={`${Math.round(analysisData.averages.energy * 100)}%`} />
+                    <Stat label="Happiness" value={`${Math.round(analysisData.averages.valence * 100)}%`} />
+                    <Stat label="Danceability" value={`${Math.round(analysisData.averages.danceability * 100)}%`} />
+                    <Stat label="Avg. Tempo" value={`${Math.round(analysisData.averages.tempo)} BPM`} />
+                  </div>
+                  <button className="spotify-button" onClick={handleAnalyzeAnother}>Analyze Another</button>
               </div>
           );
 
@@ -154,4 +173,3 @@ function App() {
 }
 
 export default App;
-
