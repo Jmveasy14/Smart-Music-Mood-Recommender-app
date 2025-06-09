@@ -102,6 +102,13 @@ app.get('/api/playlist/:id', async (req, res) => {
     try {
         let allTracks = [];
         let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(track(id)),next`;
+
+        // --- NEW LOGGING ---
+        console.log("--- ATTEMPTING TO FETCH PLAYLIST TRACKS ---");
+        console.log("Using token:", token);
+        console.log("Requesting URL:", nextUrl);
+        // --- END NEW LOGGING ---
+
         while (nextUrl) {
             const tracksResponse = await axios.get(nextUrl, { headers: { 'Authorization': token } });
             allTracks = [...allTracks, ...tracksResponse.data.items.map(item => item.track).filter(t => t && t.id)];
@@ -154,7 +161,6 @@ app.get('/api/playlist/:id', async (req, res) => {
         res.status(200).json(moodProfile);
 
     } catch (error) {
-        // --- NEW: Enhanced Error Logging ---
         console.error("--- DETAILED PLAYLIST ANALYSIS ERROR ---");
         if (error.response) {
             console.error("Data:", error.response.data);
