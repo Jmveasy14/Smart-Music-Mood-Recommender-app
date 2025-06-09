@@ -4,7 +4,6 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const querystring = 'querystring';
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
@@ -31,9 +30,7 @@ const generateRandomString = (length) => {
 };
 const stateKey = 'spotify_auth_state';
 
-// --- API Routes ---
-
-// unchanged /api/auth/login route...
+// --- API Routes (Authentication - Unchanged) ---
 app.get('/api/auth/login', (req, res) => {
     const state = generateRandomString(16);
     res.cookie(stateKey, state);
@@ -48,40 +45,37 @@ app.get('/api/auth/login', (req, res) => {
         }));
 });
 
-// unchanged /api/auth/callback route...
 app.get('/api/auth/callback', async (req, res) => {
     const code = req.query.code || null;
     const state = req.query.state || null;
     const storedState = req.cookies ? req.cookies[stateKey] : null;
 
     if (state === null || state !== storedState) {
-        res.redirect(`${FRONTEND_URI}/#?error=state_mismatch`);
-    } else {
-        res.clearCookie(stateKey);
-        try {
-            const response = await axios({
-                method: 'post',
-                url: 'https://accounts.spotify.com/api/token',
-                data: require('querystring').stringify({
-                    grant_type: 'authorization_code',
-                    code: code,
-                    redirect_uri: SPOTIFY_REDIRECT_URI
-                }),
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Authorization': 'Basic ' + (Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')),
-                }
-            });
-            const { access_token, refresh_token, expires_in } = response.data;
-            res.redirect(`${FRONTEND_URI}/#` + require('querystring').stringify({ access_token, refresh_token, expires_in }));
-        } catch (error) {
-            console.error(error);
-            res.redirect(`${FRONTEND_URI}/#?error=invalid_token`);
-        }
+        return res.redirect(`${FRONTEND_URI}/#?error=state_mismatch`);
+    }
+    res.clearCookie(stateKey);
+    try {
+        const response = await axios({
+            method: 'post',
+            url: 'https://accounts.spotify.com/api/token',
+            data: require('querystring').stringify({
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: SPOTIFY_REDIRECT_URI
+            }),
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic ' + (Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')),
+            }
+        });
+        const { access_token, refresh_token, expires_in } = response.data;
+        res.redirect(`${FRONTEND_URI}/#` + require('querystring').stringify({ access_token, refresh_token, expires_in }));
+    } catch (error) {
+        console.error(error);
+        res.redirect(`${FRONTEND_URI}/#?error=invalid_token`);
     }
 });
 
-// unchanged /api/playlists route...
 app.get('/api/playlists', async (req, res) => {
     const token = req.headers.authorization;
     if (!token) return res.status(401).json({ error: 'Authorization token not provided.' });
@@ -90,14 +84,13 @@ app.get('/api/playlists', async (req, res) => {
         const response = await axios.get('https://api.spotify.com/v1/me/playlists', { headers: { 'Authorization': token } });
         res.status(200).json(response.data);
     } catch (error) {
-        console.error("Error fetching playlists:", error.response ? error.response.data : error.message);
         res.status(error.response?.status || 500).json({ error: 'Failed to fetch playlists.' });
     }
 });
 
 /**
  * @route   GET /api/playlist/:id
- * @desc    Fetches tracks and audio features for a specific playlist.
+ * @desc    Fetches and ANALYZES a specific playlist.
  * @access  Private (requires access token)
  */
 app.get('/api/playlist/:id', async (req, res) => {
@@ -107,40 +100,71 @@ app.get('/api/playlist/:id', async (req, res) => {
     if (!token) return res.status(401).json({ error: 'Authorization token not provided.' });
 
     try {
-        // Step 1: Fetch all tracks from the playlist, handling pagination
+        // Step 1: Fetch all tracks (unchanged)
         let allTracks = [];
         let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(track(id)),next`;
-
         while (nextUrl) {
             const tracksResponse = await axios.get(nextUrl, { headers: { 'Authorization': token } });
-            const tracks = tracksResponse.data.items
-                .map(item => item.track)
-                .filter(track => track && track.id); // Filter out any null tracks
-            allTracks = [...allTracks, ...tracks];
+            allTracks = [...allTracks, ...tracksResponse.data.items.map(item => item.track).filter(t => t && t.id)];
             nextUrl = tracksResponse.data.next;
         }
 
         const trackIds = allTracks.map(track => track.id);
 
-        // Step 2: Fetch audio features for all tracks in batches of 100
+        // Step 2: Fetch audio features (unchanged)
         let allAudioFeatures = [];
         for (let i = 0; i < trackIds.length; i += 100) {
             const batchIds = trackIds.slice(i, i + 100);
-            const featuresResponse = await axios.get(`https://api.spotify.com/v1/audio-features?ids=${batchIds.join(',')}`, {
-                headers: { 'Authorization': token }
-            });
-            allAudioFeatures = [...allAudioFeatures, ...featuresResponse.data.audio_features];
+            const featuresResponse = await axios.get(`https://api.spotify.com/v1/audio-features?ids=${batchIds.join(',')}`, { headers: { 'Authorization': token } });
+            allAudioFeatures = [...allAudioFeatures, ...featuresResponse.data.audio_features.filter(f => f)];
         }
 
-        // For now, just send back the raw features. We will add aggregation later.
-        res.status(200).json({ audio_features: allAudioFeatures.filter(f => f) }); // Filter out null features
+        // --- NEW: Step 3: Analyze and aggregate the features ---
+        if (allAudioFeatures.length === 0) {
+            return res.status(200).json({ error: "No audio features found for this playlist." });
+        }
+        
+        const featureAverages = {
+            danceability: allAudioFeatures.reduce((sum, f) => sum + f.danceability, 0) / allAudioFeatures.length,
+            energy: allAudioFeatures.reduce((sum, f) => sum + f.energy, 0) / allAudioFeatures.length,
+            valence: allAudioFeatures.reduce((sum, f) => sum + f.valence, 0) / allAudioFeatures.length,
+            tempo: allAudioFeatures.reduce((sum, f) => sum + f.tempo, 0) / allAudioFeatures.length,
+            acousticness: allAudioFeatures.reduce((sum, f) => sum + f.acousticness, 0) / allAudioFeatures.length,
+        };
+
+        // --- NEW: Step 4: Create a descriptive mood profile ---
+        const moodProfile = {
+            primaryMood: '',
+            tags: [],
+            averages: featureAverages
+        };
+
+        // Determine primary mood
+        if (featureAverages.valence > 0.65 && featureAverages.energy > 0.65) {
+            moodProfile.primaryMood = "Euphoric & Energetic";
+        } else if (featureAverages.valence > 0.5 && featureAverages.energy < 0.5) {
+            moodProfile.primaryMood = "Happy & Chill";
+        } else if (featureAverages.valence < 0.35 && featureAverages.energy < 0.4) {
+            moodProfile.primaryMood = "Melancholic & Reflective";
+        } else if (featureAverages.valence < 0.5 && featureAverages.energy > 0.7) {
+            moodProfile.primaryMood = "Anxious & Intense";
+        } else {
+            moodProfile.primaryMood = "Neutral";
+        }
+        
+        // Add descriptive tags
+        if (featureAverages.danceability > 0.7) moodProfile.tags.push("Highly Danceable");
+        if (featureAverages.tempo > 140) moodProfile.tags.push("Fast-Paced");
+        if (featureAverages.acousticness > 0.7) moodProfile.tags.push("Acoustic");
+
+
+        res.status(200).json(moodProfile);
 
     } catch (error) {
-        console.error("Error fetching playlist data:", error.response ? error.response.data : error.message);
-        res.status(error.response?.status || 500).json({ error: 'Failed to fetch playlist data.' });
+        console.error("Error analyzing playlist:", error.response ? error.response.data : error.message);
+        res.status(error.response?.status || 500).json({ error: 'Failed to analyze playlist.' });
     }
 });
-
 
 // A simple test route
 app.get('/', (req, res) => {
