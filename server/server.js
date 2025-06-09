@@ -6,7 +6,7 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const querystring = require('querystring'); // Import the module once at the top
+const querystring = require('querystring');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
@@ -40,14 +40,14 @@ app.get('/api/auth/login', (req, res) => {
     res.cookie(stateKey, state);
     const scope = 'user-read-private user-read-email playlist-read-private playlist-read-collaborative';
     
-    // Use the querystring variable defined at the top of the file
     res.redirect('https://accounts.spotify.com/authorize?' +
         querystring.stringify({
             response_type: 'code',
             client_id: SPOTIFY_CLIENT_ID,
             scope: scope,
             redirect_uri: SPOTIFY_REDIRECT_URI,
-            state: state
+            state: state,
+            show_dialog: true // --- NEW: Force permission dialog every time for debugging ---
         }));
 });
 
@@ -64,7 +64,6 @@ app.get('/api/auth/callback', async (req, res) => {
         const response = await axios({
             method: 'post',
             url: 'https://accounts.spotify.com/api/token',
-            // Use the querystring variable consistently
             data: querystring.stringify({
                 grant_type: 'authorization_code',
                 code: code,
@@ -76,7 +75,6 @@ app.get('/api/auth/callback', async (req, res) => {
             }
         });
         const { access_token, refresh_token, expires_in } = response.data;
-        // Use the querystring variable consistently
         res.redirect(`${FRONTEND_URI}/#` + querystring.stringify({ access_token, refresh_token, expires_in }));
     } catch (error) {
         console.error("Error in /api/auth/callback:", error);
