@@ -6,7 +6,7 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const querystring = require('querystring');
+const querystring = require('querystring'); // Import the module once at the top
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
@@ -39,6 +39,8 @@ app.get('/api/auth/login', (req, res) => {
     const state = generateRandomString(16);
     res.cookie(stateKey, state);
     const scope = 'user-read-private user-read-email playlist-read-private playlist-read-collaborative';
+    
+    // Use the querystring variable defined at the top of the file
     res.redirect('https://accounts.spotify.com/authorize?' +
         querystring.stringify({
             response_type: 'code',
@@ -62,6 +64,7 @@ app.get('/api/auth/callback', async (req, res) => {
         const response = await axios({
             method: 'post',
             url: 'https://accounts.spotify.com/api/token',
+            // Use the querystring variable consistently
             data: querystring.stringify({
                 grant_type: 'authorization_code',
                 code: code,
@@ -73,9 +76,10 @@ app.get('/api/auth/callback', async (req, res) => {
             }
         });
         const { access_token, refresh_token, expires_in } = response.data;
+        // Use the querystring variable consistently
         res.redirect(`${FRONTEND_URI}/#` + querystring.stringify({ access_token, refresh_token, expires_in }));
     } catch (error) {
-        console.error(error);
+        console.error("Error in /api/auth/callback:", error);
         res.redirect(`${FRONTEND_URI}/#?error=invalid_token`);
     }
 });
@@ -102,12 +106,6 @@ app.get('/api/playlist/:id', async (req, res) => {
     try {
         let allTracks = [];
         let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(track(id)),next`;
-
-        // --- NEW LOGGING ---
-        console.log("--- ATTEMPTING TO FETCH PLAYLIST TRACKS ---");
-        console.log("Using token:", token);
-        console.log("Requesting URL:", nextUrl);
-        // --- END NEW LOGGING ---
 
         while (nextUrl) {
             const tracksResponse = await axios.get(nextUrl, { headers: { 'Authorization': token } });
@@ -165,9 +163,6 @@ app.get('/api/playlist/:id', async (req, res) => {
         if (error.response) {
             console.error("Data:", error.response.data);
             console.error("Status:", error.response.status);
-            console.error("Headers:", error.response.headers);
-        } else if (error.request) {
-            console.error("Request:", error.request);
         } else {
             console.error("Error Message:", error.message);
         }
