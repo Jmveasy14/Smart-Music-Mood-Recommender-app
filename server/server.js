@@ -1,9 +1,12 @@
+// VibeCast - Backend Server
+// File: server.js
 // Description: Main entry point for the Node.js Express backend.
 
 // --- Imports ---
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const querystring = require('querystring'); // CORRECTED: Was a string, now correctly requires the module
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
@@ -30,13 +33,14 @@ const generateRandomString = (length) => {
 };
 const stateKey = 'spotify_auth_state';
 
-// --- API Routes (Authentication - Unchanged) ---
+// --- API Routes ---
+
 app.get('/api/auth/login', (req, res) => {
     const state = generateRandomString(16);
     res.cookie(stateKey, state);
     const scope = 'user-read-private user-read-email playlist-read-private playlist-read-collaborative';
     res.redirect('https://accounts.spotify.com/authorize?' +
-        require('querystring').stringify({
+        querystring.stringify({ // CORRECTED: Uses the correctly imported module
             response_type: 'code',
             client_id: SPOTIFY_CLIENT_ID,
             scope: scope,
@@ -58,7 +62,7 @@ app.get('/api/auth/callback', async (req, res) => {
         const response = await axios({
             method: 'post',
             url: 'https://accounts.spotify.com/api/token',
-            data: require('querystring').stringify({
+            data: querystring.stringify({ // CORRECTED: Uses the correctly imported module
                 grant_type: 'authorization_code',
                 code: code,
                 redirect_uri: SPOTIFY_REDIRECT_URI
@@ -69,7 +73,7 @@ app.get('/api/auth/callback', async (req, res) => {
             }
         });
         const { access_token, refresh_token, expires_in } = response.data;
-        res.redirect(`${FRONTEND_URI}/#` + require('querystring').stringify({ access_token, refresh_token, expires_in }));
+        res.redirect(`${FRONTEND_URI}/#` + querystring.stringify({ access_token, refresh_token, expires_in })); // CORRECTED
     } catch (error) {
         console.error(error);
         res.redirect(`${FRONTEND_URI}/#?error=invalid_token`);
@@ -88,11 +92,7 @@ app.get('/api/playlists', async (req, res) => {
     }
 });
 
-/**
- * @route   GET /api/playlist/:id
- * @desc    Fetches and ANALYZES a specific playlist.
- * @access  Private (requires access token)
- */
+
 app.get('/api/playlist/:id', async (req, res) => {
     const token = req.headers.authorization;
     const playlistId = req.params.id;
@@ -100,7 +100,6 @@ app.get('/api/playlist/:id', async (req, res) => {
     if (!token) return res.status(401).json({ error: 'Authorization token not provided.' });
 
     try {
-        // Step 1: Fetch all tracks (unchanged)
         let allTracks = [];
         let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(track(id)),next`;
         while (nextUrl) {
@@ -111,7 +110,6 @@ app.get('/api/playlist/:id', async (req, res) => {
 
         const trackIds = allTracks.map(track => track.id);
 
-        // Step 2: Fetch audio features (unchanged)
         let allAudioFeatures = [];
         for (let i = 0; i < trackIds.length; i += 100) {
             const batchIds = trackIds.slice(i, i + 100);
@@ -119,7 +117,6 @@ app.get('/api/playlist/:id', async (req, res) => {
             allAudioFeatures = [...allAudioFeatures, ...featuresResponse.data.audio_features.filter(f => f)];
         }
 
-        // --- NEW: Step 3: Analyze and aggregate the features ---
         if (allAudioFeatures.length === 0) {
             return res.status(200).json({ error: "No audio features found for this playlist." });
         }
@@ -132,14 +129,12 @@ app.get('/api/playlist/:id', async (req, res) => {
             acousticness: allAudioFeatures.reduce((sum, f) => sum + f.acousticness, 0) / allAudioFeatures.length,
         };
 
-        // --- NEW: Step 4: Create a descriptive mood profile ---
         const moodProfile = {
             primaryMood: '',
             tags: [],
             averages: featureAverages
         };
 
-        // Determine primary mood
         if (featureAverages.valence > 0.65 && featureAverages.energy > 0.65) {
             moodProfile.primaryMood = "Euphoric & Energetic";
         } else if (featureAverages.valence > 0.5 && featureAverages.energy < 0.5) {
@@ -152,11 +147,9 @@ app.get('/api/playlist/:id', async (req, res) => {
             moodProfile.primaryMood = "Neutral";
         }
         
-        // Add descriptive tags
         if (featureAverages.danceability > 0.7) moodProfile.tags.push("Highly Danceable");
         if (featureAverages.tempo > 140) moodProfile.tags.push("Fast-Paced");
         if (featureAverages.acousticness > 0.7) moodProfile.tags.push("Acoustic");
-
 
         res.status(200).json(moodProfile);
 
