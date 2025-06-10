@@ -1,5 +1,6 @@
 // VibeCast - Backend Server
-// Description: AI-Powered analysis backend using Google's Gemini API.
+// File: server.js
+// Description: AI-Powered analysis backend using Google's free Gemini API.
 
 // --- Imports ---
 const express = require('express');
@@ -117,7 +118,8 @@ app.get('/api/playlist/:id', async (req, res) => {
             ${trackList}
         `;
 
-        const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+        // CORRECTED: Updated the model name to gemini-1.5-flash-latest
+        const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
         
         const geminiResponse = await axios.post(geminiApiUrl, {
             contents: [{ parts: [{ text: prompt }] }],
