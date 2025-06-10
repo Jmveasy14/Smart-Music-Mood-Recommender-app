@@ -5,6 +5,15 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import axios from 'axios';
 
+// A simple component to render a single stat
+const Stat = ({ label, value }) => (
+  <div className="stat-item">
+    <div className="stat-value">{value}</div>
+    <div className="stat-label">{label}</div>
+  </div>
+);
+
+
 function App() {
   // State for authentication & data
   const [accessToken, setAccessToken] = useState(null);
@@ -67,8 +76,12 @@ function App() {
     if (!accessToken) return;
 
     setAppState('analyzing');
-    setSelectedPlaylistName(playlist.name); // Store the name for the loading message
-    setLoadingMessage(`Casting the vibe for "${playlist.name}"...`);
+    setSelectedPlaylistName(playlist.name);
+    
+    // NEW: Engaging loading messages
+    setLoadingMessage(`Reading the rhythm of "${playlist.name}"...`);
+    setTimeout(() => setLoadingMessage('Consulting the muses...'), 2000);
+    setTimeout(() => setLoadingMessage('Casting the vibe...'), 4000);
     
     try {
         const response = await axios.get(`http://127.0.0.1:8888/api/playlist/${playlist.id}`, {
@@ -78,7 +91,7 @@ function App() {
         setAppState('results'); 
     } catch (error) {
         console.error("Error analyzing playlist:", error);
-        setAppState('playlists'); // Go back to playlists on error
+        setAppState('playlists');
     }
     setLoadingMessage('');
   };
@@ -124,7 +137,7 @@ function App() {
         );
       
       case 'results':
-          if (!analysisData) {
+          if (!analysisData || !analysisData.simulatedAverages) {
               return <p>No analysis data available.</p>;
           }
           return (
@@ -137,7 +150,13 @@ function App() {
                     </div>
                   </div>
 
-                  {/* --- Activity Suggestions Section --- */}
+                  {/* NEW: Displaying simulated stats from the AI */}
+                  <div className="stats-container">
+                    <Stat label="Energy" value={`${Math.round(analysisData.simulatedAverages.energy * 100)}%`} />
+                    <Stat label="Happiness" value={`${Math.round(analysisData.simulatedAverages.happiness * 100)}%`} />
+                    <Stat label="Danceability" value={`${Math.round(analysisData.simulatedAverages.danceability * 100)}%`} />
+                  </div>
+
                   <div className="suggestions-container">
                       <h3>Activity Suggestions</h3>
                       <ul>

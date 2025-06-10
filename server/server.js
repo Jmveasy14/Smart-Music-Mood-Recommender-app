@@ -19,7 +19,6 @@ const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI;
 const FRONTEND_URI = process.env.FRONTEND_URI || 'http://127.0.0.1:3000';
-// Using Google's Gemini API Key now
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // --- Middleware ---
@@ -84,7 +83,7 @@ app.get('/api/playlists', async (req, res) => {
 
 /**
  * @route   GET /api/playlist/:id
- * @desc    Fetches tracks and uses Google Gemini for free lyrical analysis.
+ * @desc    Fetches tracks and uses Google Gemini for DEEPER lyrical analysis.
  * @access  Private (requires access token)
  */
 app.get('/api/playlist/:id', async (req, res) => {
@@ -107,18 +106,30 @@ app.get('/api/playlist/:id', async (req, res) => {
         // Step 2: Use Google Gemini to analyze the track list
         const trackList = allTracks.map(t => `${t.name} by ${t.artists.map(a => a.name).join(', ')}`).join('\n');
         
+        // --- NEW: Enhanced Prompt for Deeper Analysis ---
         const prompt = `
-            Based on the following list of song titles and artists from a Spotify playlist, analyze the overall mood, vibe, and energy.
-            Return a JSON object with the exact following structure: {"primaryMood": "string", "tags": ["string"], "activitySuggestions": ["string"]}.
+            Based on the following list of song titles and artists from a Spotify playlist, perform a deep analysis. Based on your knowledge of these songs (typical lyrics, genre, sound), generate a comprehensive mood profile.
+            Return a JSON object with the exact following structure: 
+            {
+              "primaryMood": "string", 
+              "tags": ["string"], 
+              "activitySuggestions": ["string"],
+              "simulatedAverages": {
+                  "energy": number,
+                  "happiness": number,
+                  "danceability": number
+              }
+            }.
+
             - primaryMood: A short, descriptive name for the overall vibe (e.g., 'Energetic Workout', 'Late Night Chill', 'Summer Road Trip').
             - tags: A list of 3-5 single-word tags describing the mood.
             - activitySuggestions: A list of 2-3 recommended activities.
+            - simulatedAverages: An object where you estimate the playlist's average energy, happiness (valence), and danceability. Each value MUST be a number between 0.0 and 1.0.
 
             Playlist Tracks:
             ${trackList}
         `;
 
-        // CORRECTED: Updated the model name to gemini-1.5-flash-latest
         const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
         
         const geminiResponse = await axios.post(geminiApiUrl, {
@@ -128,7 +139,6 @@ app.get('/api/playlist/:id', async (req, res) => {
             }
         });
 
-        // The response from Gemini is a stringified JSON inside a larger object.
         const analysisResult = JSON.parse(geminiResponse.data.candidates[0].content.parts[0].text);
         
         res.status(200).json(analysisResult);
