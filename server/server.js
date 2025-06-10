@@ -1,5 +1,5 @@
 // VibeCast - Backend Server
-// Description: AI-Powered analysis backend.
+// Description: AI-Powered analysis backend using Google's Gemini API.
 
 // --- Imports ---
 const express = require('express');
@@ -7,7 +7,6 @@ const cors = require('cors');
 const axios = require('axios');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
-const OpenAI = require('openai'); // Import OpenAI library
 require('dotenv').config();
 
 // --- App Initialization ---
@@ -19,12 +18,8 @@ const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI;
 const FRONTEND_URI = process.env.FRONTEND_URI || 'http://127.0.0.1:3000';
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-// --- OpenAI Client Initialization ---
-const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY,
-});
+// Using Google's Gemini API Key now
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // --- Middleware ---
 app.use(cors());
@@ -49,6 +44,7 @@ app.get('/api/auth/login', (req, res) => {
     });
     res.redirect(`https://accounts.spotify.com/authorize?${params.toString()}`);
 });
+
 app.get('/api/auth/callback', async (req, res) => {
     const code = req.query.code || null;
     const state = req.query.state || null;
@@ -73,6 +69,7 @@ app.get('/api/auth/callback', async (req, res) => {
         res.redirect(`${FRONTEND_URI}/#?error=invalid_token`);
     }
 });
+
 app.get('/api/playlists', async (req, res) => {
     const token = req.headers.authorization;
     if (!token) return res.status(401).json({ error: 'Authorization token not provided.' });
@@ -86,17 +83,17 @@ app.get('/api/playlists', async (req, res) => {
 
 /**
  * @route   GET /api/playlist/:id
- * @desc    Fetches tracks and uses OpenAI for lyrical analysis.
+ * @desc    Fetches tracks and uses Google Gemini for free lyrical analysis.
  * @access  Private (requires access token)
  */
 app.get('/api/playlist/:id', async (req, res) => {
     const token = req.headers.authorization;
     const playlistId = req.params.id;
     if (!token) return res.status(401).json({ error: 'Authorization token not provided.' });
-    if (!OPENAI_API_KEY) return res.status(500).json({ error: 'OpenAI API key not configured.' });
+    if (!GEMINI_API_KEY) return res.status(500).json({ error: 'Gemini API key not configured.' });
 
     try {
-        // Step 1: Fetch tracks with their names and artists
+        // Step 1: Fetch tracks from Spotify
         let allTracks = [];
         const fields = 'items(track(id,name,artists(name))),next';
         let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=${encodeURIComponent(fields)}`;
@@ -106,47 +103,45 @@ app.get('/api/playlist/:id', async (req, res) => {
             nextUrl = tracksResponse.data.next;
         }
 
-        // Step 2: Use OpenAI to analyze the track list
+        // Step 2: Use Google Gemini to analyze the track list
         const trackList = allTracks.map(t => `${t.name} by ${t.artists.map(a => a.name).join(', ')}`).join('\n');
         
         const prompt = `
             Based on the following list of song titles and artists from a Spotify playlist, analyze the overall mood, vibe, and energy.
-            Return a JSON object with the following structure:
-            {
-              "primaryMood": "A short, descriptive name for the overall vibe (e.g., 'Energetic Workout', 'Late Night Chill', 'Summer Road Trip').",
-              "tags": ["A", "list", "of", "3-5", "single-word", "tags", "describing", "the mood"],
-              "activitySuggestions": ["A", "list", "of", "2-3", "recommended", "activities"]
-            }
+            Return a JSON object with the exact following structure: {"primaryMood": "string", "tags": ["string"], "activitySuggestions": ["string"]}.
+            - primaryMood: A short, descriptive name for the overall vibe (e.g., 'Energetic Workout', 'Late Night Chill', 'Summer Road Trip').
+            - tags: A list of 3-5 single-word tags describing the mood.
+            - activitySuggestions: A list of 2-3 recommended activities.
 
             Playlist Tracks:
             ${trackList}
         `;
 
-        const aiResponse = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [{ role: "user", content: prompt }],
-            response_format: { type: "json_object" } // Enforce JSON output
+        const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+        
+        const geminiResponse = await axios.post(geminiApiUrl, {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                response_mime_type: "application/json",
+            }
         });
 
-        const analysisResult = JSON.parse(aiResponse.choices[0].message.content);
-        
-        // Add dummy averages to prevent frontend errors for now
-        analysisResult.averages = { energy: 0, happiness: 0, danceability: 0, tempo: 0 };
+        // The response from Gemini is a stringified JSON inside a larger object.
+        const analysisResult = JSON.parse(geminiResponse.data.candidates[0].content.parts[0].text);
         
         res.status(200).json(analysisResult);
 
     } catch (error) {
-        console.error("--- ANALYSIS ERROR ---");
+        console.error("--- GEMINI ANALYSIS ERROR ---");
         if (error.response) {
             console.error("Data:", error.response.data);
             console.error("Status:", error.response.status);
         } else {
             console.error("Full Error:", error);
         }
-        res.status(error.response?.status || 500).json({ error: 'Failed to complete AI analysis.' });
+        res.status(error.response?.status || 500).json({ error: 'Failed to complete Gemini AI analysis.' });
     }
 });
-
 
 // A simple test route
 app.get('/', (req, res) => { res.send('VibeCast Backend is alive!'); });
