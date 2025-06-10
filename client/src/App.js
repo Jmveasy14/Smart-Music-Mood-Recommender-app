@@ -172,8 +172,10 @@ function App() {
 
       default: // 'login' state
         return (
-          <div>
-            <p>Forecast your vibe. Find your next move.</p>
+          // NEW: More structured login page for better styling
+          <div className="login-container">
+            <h1 className="login-title">VibeCast</h1>
+            <p className="login-tagline">Forecast your vibe. Find your next move.</p>
             <a className="spotify-button" href="http://127.0.0.1:8888/api/auth/login">
               ♫ Connect with Spotify
             </a>
@@ -185,7 +187,8 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>VibeCast</h1>
+        {/* The main title is now rendered based on state */}
+        {appState !== 'login' && <h1 className="main-title">VibeCast</h1>}
         {renderContent()}
       </header>
     </div>

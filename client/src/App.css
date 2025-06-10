@@ -2,29 +2,27 @@
   text-align: center;
 }
 
-/* Animated Gradient Background */
-@keyframes gradient-animation {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
 .App-header {
-  background: linear-gradient(-45deg, #121212, #181818, #282828, #121212);
-  background-size: 400% 400%;
-  animation: gradient-animation 15s ease infinite;
+  /* NEW: Background image with a dark overlay */
+  background: 
+    linear-gradient(rgba(18, 18, 18, 0.85), rgba(18, 18, 18, 0.95)), 
+    url('https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=2070&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center;
   min-height: 100vh;
   display: flex;
-  flex-direction: column; 
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: calc(10px + 2vmin);
   color: white;
   padding: 20px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  transition: background 0.5s ease-in-out;
 }
 
-h1 {
+/* NEW: Styles for the main app title (on pages other than login) */
+.main-title {
     position: absolute;
     top: 20px;
     left: 40px;
@@ -37,7 +35,37 @@ h2 {
     line-height: 1.4;
 }
 
-/* --- Login Button / General Button --- */
+/* --- Login Page Specific Styles --- */
+.login-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+}
+
+/* NEW: Cool title style */
+.login-title {
+    font-size: 8rem;
+    font-weight: 900;
+    color: #1DB954;
+    text-shadow: 0 0 15px rgba(29, 185, 84, 0.6), 0 0 25px rgba(29, 185, 84, 0.4);
+    margin: 0;
+    letter-spacing: -3px;
+    line-height: 1;
+}
+
+.login-tagline {
+    font-size: 1.25rem;
+    color: #b3b3b3;
+    margin-top: 15px;
+    margin-bottom: 40px;
+    font-weight: 300;
+}
+
+
+/* --- General Button --- */
 .spotify-button {
   background-color: #1DB954;
   color: white;
@@ -152,14 +180,11 @@ h2 {
 
 
 /* --- Results Screen --- */
-
-/* NEW: Keyframe for fade-in effect */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* NEW: Keyframe for the subtle glow */
 @keyframes subtle-glow {
     0%, 100% { box-shadow: 0 0 20px rgba(29, 185, 84, 0.2); }
     50% { box-shadow: 0 0 30px rgba(29, 185, 84, 0.3); }
@@ -176,7 +201,7 @@ h2 {
     width: 90%;
     max-width: 600px;
     border: 1px solid #282828;
-    animation: fadeIn 0.8s ease-out, subtle-glow 5s ease-in-out infinite; /* Apply animations */
+    animation: fadeIn 0.8s ease-out, subtle-glow 5s ease-in-out infinite;
 }
 
 .mood-display .primary-mood {
@@ -185,7 +210,7 @@ h2 {
     margin: 0;
     color: #1DB954;
     line-height: 1.2;
-    animation: fadeIn 1s ease-out 0.2s; /* Staggered animation */
+    animation: fadeIn 1s ease-out 0.2s;
     animation-fill-mode: backwards;
 }
 
@@ -196,7 +221,7 @@ h2 {
     margin-bottom: 25px;
     flex-wrap: wrap;
     justify-content: center;
-    animation: fadeIn 1s ease-out 0.4s; /* Staggered animation */
+    animation: fadeIn 1s ease-out 0.4s;
     animation-fill-mode: backwards;
 }
 
@@ -207,13 +232,39 @@ h2 {
     font-size: 14px;
 }
 
+.stats-container {
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+    margin-top: 10px;
+    padding-bottom: 30px;
+    animation: fadeIn 1s ease-out 0.5s;
+    animation-fill-mode: backwards;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #b3b3b3;
+    margin-top: 5px;
+}
+
+
 .suggestions-container {
     width: 100%;
     margin-top: 40px;
     border-top: 1px solid #333;
     padding-top: 30px;
     text-align: left;
-    animation: fadeIn 1s ease-out 0.6s; /* Staggered animation */
+    animation: fadeIn 1s ease-out 0.6s;
     animation-fill-mode: backwards;
 }
 
@@ -243,4 +294,3 @@ h2 {
     background-color: #333;
     transform: scale(1.02);
 }
-
