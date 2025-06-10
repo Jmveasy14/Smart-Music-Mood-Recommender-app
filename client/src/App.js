@@ -1,26 +1,21 @@
+// client/src/App.js
 // Main component for the VibeCast React frontend
 
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import axios from 'axios';
 
-// A simple component to render a single stat
-const Stat = ({ label, value }) => (
-  <div className="stat-item">
-    <div className="stat-value">{value}</div>
-    <div className="stat-label">{label}</div>
-  </div>
-);
-
 function App() {
   // State for authentication & data
   const [accessToken, setAccessToken] = useState(null);
   const [playlists, setPlaylists] = useState([]);
   const [analysisData, setAnalysisData] = useState(null);
+  const [selectedPlaylistName, setSelectedPlaylistName] = useState('');
 
   // State for UI control
   const [appState, setAppState] = useState('login'); // 'login', 'playlists', 'analyzing', 'results'
   const [loadingMessage, setLoadingMessage] = useState('');
+
 
   // --- Effects ---
 
@@ -72,7 +67,8 @@ function App() {
     if (!accessToken) return;
 
     setAppState('analyzing');
-    setLoadingMessage(`Analyzing "${playlist.name}"...`);
+    setSelectedPlaylistName(playlist.name); // Store the name for the loading message
+    setLoadingMessage(`Casting the vibe for "${playlist.name}"...`);
     
     try {
         const response = await axios.get(`http://127.0.0.1:8888/api/playlist/${playlist.id}`, {
@@ -82,7 +78,7 @@ function App() {
         setAppState('results'); 
     } catch (error) {
         console.error("Error analyzing playlist:", error);
-        setAppState('playlists');
+        setAppState('playlists'); // Go back to playlists on error
     }
     setLoadingMessage('');
   };
@@ -133,19 +129,24 @@ function App() {
           }
           return (
               <div className="results-container">
-                  <h2>The VibeCast is...</h2>
+                  <h2>The VibeCast for "{selectedPlaylistName}" is...</h2>
                   <div className="mood-display">
                     <p className="primary-mood">{analysisData.primaryMood}</p>
                     <div className="tags-container">
-                        {analysisData.tags.map(tag => <span key={tag} className="mood-tag">{tag}</span>)}
+                        {analysisData.tags && analysisData.tags.map(tag => <span key={tag} className="mood-tag">{tag}</span>)}
                     </div>
                   </div>
-                  <div className="stats-container">
-                    <Stat label="Energy" value={`${Math.round(analysisData.averages.energy * 100)}%`} />
-                    <Stat label="Happiness" value={`${Math.round(analysisData.averages.valence * 100)}%`} />
-                    <Stat label="Danceability" value={`${Math.round(analysisData.averages.danceability * 100)}%`} />
-                    <Stat label="Avg. Tempo" value={`${Math.round(analysisData.averages.tempo)} BPM`} />
+
+                  {/* --- Activity Suggestions Section --- */}
+                  <div className="suggestions-container">
+                      <h3>Activity Suggestions</h3>
+                      <ul>
+                          {analysisData.activitySuggestions && analysisData.activitySuggestions.map(activity => (
+                              <li key={activity} className="suggestion-item">{activity}</li>
+                          ))}
+                      </ul>
                   </div>
+
                   <button className="spotify-button" onClick={handleAnalyzeAnother}>Analyze Another</button>
               </div>
           );
