@@ -83,7 +83,7 @@ app.get('/api/playlists', async (req, res) => {
 
 /**
  * @route   GET /api/playlist/:id
- * @desc    Fetches tracks and uses Google Gemini for DEEPER lyrical analysis.
+ * @desc    Fetches tracks and uses Google Gemini for analysis and song recommendation.
  * @access  Private (requires access token)
  */
 app.get('/api/playlist/:id', async (req, res) => {
@@ -104,42 +104,59 @@ app.get('/api/playlist/:id', async (req, res) => {
         }
 
         // Step 2: Use Google Gemini to analyze the track list
-        const trackList = allTracks.map(t => `${t.name} by ${t.artists.map(a => a.name).join(', ')}`).join('\n');
+        const trackList = allTracks.slice(0, 50).map(t => `${t.name} by ${t.artists.map(a => a.name).join(', ')}`).join('\n'); // Limit to 50 tracks to keep prompt size reasonable
         
-        // --- NEW: Enhanced Prompt for Deeper Analysis ---
         const prompt = `
-            Based on the following list of song titles and artists from a Spotify playlist, perform a deep analysis. Based on your knowledge of these songs (typical lyrics, genre, sound), generate a comprehensive mood profile.
+            Based on the following list of song titles from a Spotify playlist, perform a deep analysis.
+            1. Determine the overall mood and primary vibe.
+            2. Recommend ONE new song that fits this vibe perfectly but is NOT in the playlist.
+            
             Return a JSON object with the exact following structure: 
             {
               "primaryMood": "string", 
               "tags": ["string"], 
               "activitySuggestions": ["string"],
-              "simulatedAverages": {
-                  "energy": number,
-                  "happiness": number,
-                  "danceability": number
+              "recommendedSong": {
+                  "name": "string",
+                  "artist": "string",
+                  "reason": "string"
               }
             }.
 
-            - primaryMood: A short, descriptive name for the overall vibe (e.g., 'Energetic Workout', 'Late Night Chill', 'Summer Road Trip').
+            - primaryMood: A short, descriptive name for the overall vibe.
             - tags: A list of 3-5 single-word tags describing the mood.
             - activitySuggestions: A list of 2-3 recommended activities.
-            - simulatedAverages: An object where you estimate the playlist's average energy, happiness (valence), and danceability. Each value MUST be a number between 0.0 and 1.0.
+            - recommendedSong: An object containing the name, artist, and a short, compelling reason why this song fits the playlist's vibe.
 
             Playlist Tracks:
             ${trackList}
         `;
 
         const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
-        
         const geminiResponse = await axios.post(geminiApiUrl, {
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-                response_mime_type: "application/json",
-            }
+            generationConfig: { response_mime_type: "application/json" }
         });
 
         const analysisResult = JSON.parse(geminiResponse.data.candidates[0].content.parts[0].text);
+        
+        // --- NEW: Step 3: Search Spotify for the recommended song to get its cover art ---
+        if (analysisResult.recommendedSong) {
+            const { name, artist } = analysisResult.recommendedSong;
+            const searchQuery = `track:${name} artist:${artist}`;
+            const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQuery)}&type=track&limit=1`;
+            
+            try {
+                const searchResponse = await axios.get(searchUrl, { headers: { 'Authorization': token } });
+                if (searchResponse.data.tracks.items.length > 0) {
+                    const track = searchResponse.data.tracks.items[0];
+                    analysisResult.recommendedSong.coverArt = track.album.images[0]?.url;
+                }
+            } catch (searchError) {
+                console.error("Spotify search for recommended song failed:", searchError.message);
+                // If search fails, we continue without the cover art, it's not a critical failure.
+            }
+        }
         
         res.status(200).json(analysisResult);
 
@@ -155,7 +172,5 @@ app.get('/api/playlist/:id', async (req, res) => {
     }
 });
 
-// A simple test route
 app.get('/', (req, res) => { res.send('VibeCast Backend is alive!'); });
-// --- Server Listener ---
 app.listen(PORT, () => { console.log(`✅ Server is running on http://127.0.0.1:${PORT}`); });

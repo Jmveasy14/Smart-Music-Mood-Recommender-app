@@ -5,15 +5,6 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import axios from 'axios';
 
-// A simple component to render a single stat
-const Stat = ({ label, value }) => (
-  <div className="stat-item">
-    <div className="stat-value">{value}</div>
-    <div className="stat-label">{label}</div>
-  </div>
-);
-
-
 function App() {
   // State for authentication & data
   const [accessToken, setAccessToken] = useState(null);
@@ -77,11 +68,7 @@ function App() {
 
     setAppState('analyzing');
     setSelectedPlaylistName(playlist.name);
-    
-    // NEW: Engaging loading messages
-    setLoadingMessage(`Reading the rhythm of "${playlist.name}"...`);
-    setTimeout(() => setLoadingMessage('Consulting the muses...'), 2000);
-    setTimeout(() => setLoadingMessage('Casting the vibe...'), 4000);
+    setLoadingMessage(`Casting the vibe for "${playlist.name}"...`);
     
     try {
         const response = await axios.get(`http://127.0.0.1:8888/api/playlist/${playlist.id}`, {
@@ -137,7 +124,7 @@ function App() {
         );
       
       case 'results':
-          if (!analysisData || !analysisData.simulatedAverages) {
+          if (!analysisData) {
               return <p>No analysis data available.</p>;
           }
           return (
@@ -150,12 +137,20 @@ function App() {
                     </div>
                   </div>
 
-                  {/* NEW: Displaying simulated stats from the AI */}
-                  <div className="stats-container">
-                    <Stat label="Energy" value={`${Math.round(analysisData.simulatedAverages.energy * 100)}%`} />
-                    <Stat label="Happiness" value={`${Math.round(analysisData.simulatedAverages.happiness * 100)}%`} />
-                    <Stat label="Danceability" value={`${Math.round(analysisData.simulatedAverages.danceability * 100)}%`} />
-                  </div>
+                  {/* NEW: Song Recommendation Section */}
+                  {analysisData.recommendedSong && (
+                    <div className="recommendation-container">
+                        <h3>Vibe-Matched Song</h3>
+                        <div className="song-card">
+                            <img src={analysisData.recommendedSong.coverArt || 'https://placehold.co/150x150/181818/b3b3b3?text=?'} alt="Recommended song cover" />
+                            <div className="song-details">
+                                <p className="song-name">{analysisData.recommendedSong.name}</p>
+                                <p className="song-artist">{analysisData.recommendedSong.artist}</p>
+                                <p className="song-reason">"{analysisData.recommendedSong.reason}"</p>
+                            </div>
+                        </div>
+                    </div>
+                  )}
 
                   <div className="suggestions-container">
                       <h3>Activity Suggestions</h3>
@@ -172,7 +167,6 @@ function App() {
 
       default: // 'login' state
         return (
-          // NEW: More structured login page for better styling
           <div className="login-container">
             <h1 className="login-title">VibeCast</h1>
             <p className="login-tagline">Forecast your vibe. Find your next move.</p>
@@ -187,7 +181,6 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        {/* The main title is now rendered based on state */}
         {appState !== 'login' && <h1 className="main-title">VibeCast</h1>}
         {renderContent()}
       </header>
