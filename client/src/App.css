@@ -2,11 +2,20 @@
   text-align: center;
 }
 
+/* Animated Gradient Background */
+@keyframes gradient-animation {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 .App-header {
-  background-color: #121212;
+  background: linear-gradient(-45deg, #121212, #181818, #282828, #121212);
+  background-size: 400% 400%;
+  animation: gradient-animation 15s ease infinite;
   min-height: 100vh;
   display: flex;
-  flex-direction: column;
+  flex-direction: column; 
   align-items: center;
   justify-content: center;
   font-size: calc(10px + 2vmin);
@@ -20,6 +29,7 @@ h1 {
     top: 20px;
     left: 40px;
     font-size: 24px;
+    font-weight: bold;
 }
 
 h2 {
@@ -140,7 +150,21 @@ h2 {
   color: #b3b3b3;
 }
 
+
 /* --- Results Screen --- */
+
+/* NEW: Keyframe for fade-in effect */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* NEW: Keyframe for the subtle glow */
+@keyframes subtle-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(29, 185, 84, 0.2); }
+    50% { box-shadow: 0 0 30px rgba(29, 185, 84, 0.3); }
+}
+
 .results-container {
     display: flex;
     flex-direction: column;
@@ -151,14 +175,18 @@ h2 {
     border-radius: 12px;
     width: 90%;
     max-width: 600px;
+    border: 1px solid #282828;
+    animation: fadeIn 0.8s ease-out, subtle-glow 5s ease-in-out infinite; /* Apply animations */
 }
 
 .mood-display .primary-mood {
     font-size: 48px;
     font-weight: bold;
     margin: 0;
-    color: #1DB954; /* Spotify Green */
+    color: #1DB954;
     line-height: 1.2;
+    animation: fadeIn 1s ease-out 0.2s; /* Staggered animation */
+    animation-fill-mode: backwards;
 }
 
 .tags-container {
@@ -168,6 +196,8 @@ h2 {
     margin-bottom: 25px;
     flex-wrap: wrap;
     justify-content: center;
+    animation: fadeIn 1s ease-out 0.4s; /* Staggered animation */
+    animation-fill-mode: backwards;
 }
 
 .mood-tag {
@@ -183,6 +213,8 @@ h2 {
     border-top: 1px solid #333;
     padding-top: 30px;
     text-align: left;
+    animation: fadeIn 1s ease-out 0.6s; /* Staggered animation */
+    animation-fill-mode: backwards;
 }
 
 .suggestions-container h3 {
@@ -204,9 +236,11 @@ h2 {
     padding: 15px;
     margin-bottom: 10px;
     font-size: 16px;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .suggestion-item:hover {
     background-color: #333;
+    transform: scale(1.02);
 }
+
