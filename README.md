@@ -8,7 +8,7 @@
 
 ### ✨ Live Demo
 
-> **[View the live application here!](https://your-frontend-url.vercel.app)**
+> **[View the live application here!](https://vibecast-ashy.vercel.app/)**
 
 **Note:** This application operates under Spotify's "Development Mode" policy. For a live demo, please feel free to send me the email associated with your Spotify account, and I will be happy to grant you access immediately.
 
