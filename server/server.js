@@ -83,7 +83,7 @@ app.get('/api/playlists', async (req, res) => {
 
 /**
  * @route   GET /api/playlist/:id
- * @desc    Fetches tracks, uses AI for analysis, and gets recommendation details.
+ * @desc    Fetches tracks and uses Google Gemini for analysis and song recommendation.
  * @access  Private (requires access token)
  */
 app.get('/api/playlist/:id', async (req, res) => {
@@ -104,7 +104,7 @@ app.get('/api/playlist/:id', async (req, res) => {
         }
 
         // Step 2: Use Google Gemini to analyze the track list
-        const trackList = allTracks.slice(0, 50).map(t => `${t.name} by ${t.artists.map(a => a.name).join(', ')}`).join('\n');
+        const trackList = allTracks.slice(0, 50).map(t => `${t.name} by ${t.artists.map(a => a.name).join(', ')}`).join('\n'); // Limit to 50 tracks to keep prompt size reasonable
         
         const prompt = `
             Based on the following list of song titles from a Spotify playlist, perform a deep analysis.
@@ -140,7 +140,7 @@ app.get('/api/playlist/:id', async (req, res) => {
 
         const analysisResult = JSON.parse(geminiResponse.data.candidates[0].content.parts[0].text);
         
-        // Step 3: Search Spotify for the recommended song to get its details
+        // --- NEW: Step 3: Search Spotify for the recommended song to get its cover art ---
         if (analysisResult.recommendedSong) {
             const { name, artist } = analysisResult.recommendedSong;
             const searchQuery = `track:${name} artist:${artist}`;
@@ -151,11 +151,10 @@ app.get('/api/playlist/:id', async (req, res) => {
                 if (searchResponse.data.tracks.items.length > 0) {
                     const track = searchResponse.data.tracks.items[0];
                     analysisResult.recommendedSong.coverArt = track.album.images[0]?.url;
-                    // --- NEW: Add the preview URL to the response ---
-                    analysisResult.recommendedSong.previewUrl = track.preview_url;
                 }
             } catch (searchError) {
                 console.error("Spotify search for recommended song failed:", searchError.message);
+                // If search fails, we continue without the cover art, it's not a critical failure.
             }
         }
         

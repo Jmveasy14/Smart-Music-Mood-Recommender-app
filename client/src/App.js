@@ -1,18 +1,13 @@
 // client/src/App.js
 // Main component for the VibeCast React frontend
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import axios from 'axios';
 
-// --- NEW: Play and Pause SVG Icons ---
-const PlayIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
-);
-const PauseIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>
-);
-
+// The backend URL will be read from an environment variable in production,
+// otherwise it will default to our local server for development.
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://127.0.0.1:8888';
 
 function App() {
   // State for authentication & data
@@ -25,9 +20,6 @@ function App() {
   const [appState, setAppState] = useState('login'); // 'login', 'playlists', 'analyzing', 'results'
   const [loadingMessage, setLoadingMessage] = useState('');
 
-  // --- NEW: State for Audio Player ---
-  const [playingUrl, setPlayingUrl] = useState(null);
-  const audioRef = useRef(null); // Use a ref to hold the audio object
 
   // --- Effects ---
 
@@ -59,75 +51,46 @@ function App() {
     const fetchPlaylists = async () => {
       setLoadingMessage('Loading your playlists...');
       try {
-        const response = await axios.get(`/api/playlists`, {
+        const response = await axios.get(`${API_BASE_URL}/api/playlists`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         setPlaylists(response.data.items);
-      } catch (error) { console.error("Error fetching playlists:", error); }
+      } catch (error) {
+        console.error("Error fetching playlists:", error);
+      }
       setLoadingMessage('');
     };
+
     fetchPlaylists();
   }, [appState, accessToken]);
-
-  // Cleanup effect for audio when component unmounts
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    };
-  }, []);
 
 
   // --- Handlers ---
 
   const handlePlaylistClick = async (playlist) => {
-    if (audioRef.current) { audioRef.current.pause(); } // Stop music when analyzing new list
-    setPlayingUrl(null);
+    if (!accessToken) return;
 
     setAppState('analyzing');
     setSelectedPlaylistName(playlist.name);
     setLoadingMessage(`Casting the vibe for "${playlist.name}"...`);
     
     try {
-        const response = await axios.get(`/api/playlist/${playlist.id}`, {
+        const response = await axios.get(`${API_BASE_URL}/api/playlist/${playlist.id}`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         setAnalysisData(response.data);
         setAppState('results'); 
     } catch (error) {
         console.error("Error analyzing playlist:", error);
-        setAppState('playlists');
+        setAppState('playlists'); // Go back to playlists on error
     }
     setLoadingMessage('');
   };
 
   const handleAnalyzeAnother = () => {
-      if (audioRef.current) { audioRef.current.pause(); }
-      setPlayingUrl(null);
       setAnalysisData(null);
       setAppState('playlists');
-  };
-
-  const togglePlay = (url) => {
-    if (playingUrl === url) {
-      // If the clicked song is already playing, pause it
-      audioRef.current.pause();
-      setPlayingUrl(null);
-    } else {
-      // If a different song is playing, pause it first
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-      // Play the new song
-      const newAudio = new Audio(url);
-      audioRef.current = newAudio;
-      setPlayingUrl(url);
-      newAudio.play();
-      // Listen for when the song ends to reset the state
-      newAudio.addEventListener('ended', () => setPlayingUrl(null));
-    }
-  };
+  }
 
 
   // --- Render Logic ---
@@ -182,14 +145,7 @@ function App() {
                     <div className="recommendation-container">
                         <h3>Vibe-Matched Song</h3>
                         <div className="song-card">
-                            <div className="song-art-container">
-                                <img src={analysisData.recommendedSong.coverArt || 'https://placehold.co/150x150/181818/b3b3b3?text=?'} alt="Recommended song cover" />
-                                {analysisData.recommendedSong.previewUrl && (
-                                    <button className="play-button" onClick={() => togglePlay(analysisData.recommendedSong.previewUrl)}>
-                                        {playingUrl === analysisData.recommendedSong.previewUrl ? <PauseIcon/> : <PlayIcon/>}
-                                    </button>
-                                )}
-                            </div>
+                            <img src={analysisData.recommendedSong.coverArt || 'https://placehold.co/150x150/181818/b3b3b3?text=?'} alt="Recommended song cover" />
                             <div className="song-details">
                                 <p className="song-name">{analysisData.recommendedSong.name}</p>
                                 <p className="song-artist">{analysisData.recommendedSong.artist}</p>
@@ -216,8 +172,9 @@ function App() {
         return (
           <div className="login-container">
             <h1 className="login-title">VibeCast</h1>
-            <p className="login-tagline">Forecast your vibe. Find your next move.</p>
-            <a className="spotify-button" href={`/api/auth/login`}>
+            <p className="login-tagline">Smart Music Recommender by Joshua Veasy.</p>
+            {/* This link now points to the correct backend URL */}
+            <a className="spotify-button" href={`${API_BASE_URL}/api/auth/login`}>
               ♫ Connect with Spotify
             </a>
           </div>
