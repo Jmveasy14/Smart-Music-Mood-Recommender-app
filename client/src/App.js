@@ -172,7 +172,7 @@ function App() {
         return (
           <div className="login-container">
             <h1 className="login-title">VibeCast</h1>
-            <p className="login-tagline">Forecast your vibe. Find your next move.</p>
+            <p className="login-tagline">Smart Music Recommender by Joshua Veasy.</p>
             {/* This link now points to the correct backend URL */}
             <a className="spotify-button" href={`${API_BASE_URL}/api/auth/login`}>
               ♫ Connect with Spotify
