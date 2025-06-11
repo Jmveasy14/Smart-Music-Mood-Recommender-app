@@ -8,6 +8,8 @@
 
 ### ✨ Live Demo
 
+> **[Video Demo!](https://www.loom.com/share/3d7b834a9c7a47f39685065ac5443f24?sid=f717afff-14d6-447c-b86d-c0b5d4a5f026)**
+
 > **[View the live application here!](https://vibecast-ashy.vercel.app/)**
 
 **Note:** This application operates under Spotify's "Development Mode" policy. For a live demo, please feel free to send me the email associated with your Spotify account, and I will be happy to grant you access immediately.
