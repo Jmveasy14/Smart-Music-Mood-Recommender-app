@@ -5,6 +5,10 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import axios from 'axios';
 
+// The backend URL will be read from an environment variable in production,
+// otherwise it will default to our local server for development.
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://127.0.0.1:8888';
+
 function App() {
   // State for authentication & data
   const [accessToken, setAccessToken] = useState(null);
@@ -47,7 +51,7 @@ function App() {
     const fetchPlaylists = async () => {
       setLoadingMessage('Loading your playlists...');
       try {
-        const response = await axios.get('http://127.0.0.1:8888/api/playlists', {
+        const response = await axios.get(`${API_BASE_URL}/api/playlists`, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         setPlaylists(response.data.items);
@@ -71,14 +75,14 @@ function App() {
     setLoadingMessage(`Casting the vibe for "${playlist.name}"...`);
     
     try {
-        const response = await axios.get(`http://127.0.0.1:8888/api/playlist/${playlist.id}`, {
+        const response = await axios.get(`${API_BASE_URL}/api/playlist/${playlist.id}`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         setAnalysisData(response.data);
         setAppState('results'); 
     } catch (error) {
         console.error("Error analyzing playlist:", error);
-        setAppState('playlists');
+        setAppState('playlists'); // Go back to playlists on error
     }
     setLoadingMessage('');
   };
@@ -137,7 +141,6 @@ function App() {
                     </div>
                   </div>
 
-                  {/* NEW: Song Recommendation Section */}
                   {analysisData.recommendedSong && (
                     <div className="recommendation-container">
                         <h3>Vibe-Matched Song</h3>
@@ -170,7 +173,8 @@ function App() {
           <div className="login-container">
             <h1 className="login-title">VibeCast</h1>
             <p className="login-tagline">Forecast your vibe. Find your next move.</p>
-            <a className="spotify-button" href="http://127.0.0.1:8888/api/auth/login">
+            {/* This link now points to the correct backend URL */}
+            <a className="spotify-button" href={`${API_BASE_URL}/api/auth/login`}>
               ♫ Connect with Spotify
             </a>
           </div>
