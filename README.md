@@ -4,100 +4,115 @@
   <img src="Vibecast thumbnail.png" width="800" alt="VibeCast Screenshot">
 </p>
 
-VibeCast is a smart music recommender that analyzes your Spotify playlists to understand their underlying mood and vibe. Based on an AI-powered analysis of the tracklist, it suggests new activities and even a perfectly matched song to discover.
+**VibeCast** is a smart music recommender that analyzes your Spotify playlists to understand their underlying mood and vibe. Based on an AI-powered analysis of the tracklist, it suggests new activities and even a perfectly matched song to discover.
 
-✨ Live Demo
-View the live application here! 
+### ✨ Live Demo
 
-Note: This application operates under Spotify's "Development Mode" policy. For a live demo, please feel free to send me the email associated with your Spotify account, and I will be happy to grant you access immediately.
+> **[View the live application here!](https://your-frontend-url.vercel.app)**
 
-🚀 Key Features
-Secure Spotify OAuth 2.0: Securely log in with your Spotify account.
+**Note:** This application operates under Spotify's "Development Mode" policy. For a live demo, please feel free to send me the email associated with your Spotify account, and I will be happy to grant you access immediately.
 
-Playlist Analysis: Fetches and displays all of your personal playlists.
+---
 
-AI-Powered Mood Detection: Uses Google's Gemini API to perform a deep analysis of your playlist's tracklist, determining its primary mood and vibe.
+## 🚀 Key Features
 
-Intelligent Recommendations:
+* **Secure Spotify OAuth 2.0:** Securely log in with your Spotify account.
+* **Playlist Analysis:** Fetches and displays all of your personal playlists.
+* **AI-Powered Mood Detection:** Uses Google's Gemini API to perform a deep analysis of your playlist's tracklist, determining its primary mood and vibe.
+* **Intelligent Recommendations:**
+    * Generates a list of suggested activities that match the playlist's mood.
+    * Recommends a new, vibe-matched song for you to discover, complete with cover art fetched from the Spotify API.
+* **Dynamic Frontend:** A responsive and visually appealing interface built with React.
 
-Generates a list of suggested activities that match the playlist's mood.
+---
 
-Recommends a new, vibe-matched song for you to discover, complete with cover art fetched from the Spotify API.
+## 🛠️ Tech Stack
 
-Dynamic Frontend: A responsive and visually appealing interface built with React.
+* **Frontend:** React, Axios
+* **Backend:** Node.js, Express
+* **APIs:** Spotify Web API, Google Gemini API
+* **Deployment:** Vercel
 
-🛠️ Tech Stack
-Frontend: React, Axios
+---
 
-Backend: Node.js, Express
+## ⚙️ Setup and Local Installation
 
-APIs: Spotify Web API, Google Gemini API
-
-Deployment: Vercel
-
-⚙️ Setup and Local Installation
 To run this project on your local machine, follow these steps.
 
-Prerequisites
-Node.js (v18 or later)
+### Prerequisites
 
-A Spotify Developer account
+* Node.js (v18 or later)
+* A Spotify Developer account
+* A Google AI Studio account
 
-A Google AI Studio account
+### 1. Clone the Repository
 
-1. Clone the Repository
-git clone https://github.com/your-username/Vibecast.git
+```bash
+git clone [https://github.com/your-username/Vibecast.git](https://github.com/your-username/Vibecast.git)
 cd Vibecast
+```
 
-2. Configure Environment Variables
+### 2. Configure Environment Variables
+
 This project requires API keys to connect to Spotify and Google.
 
-Navigate into the server directory: cd server
+1.  Navigate into the `server` directory: `cd server`
+2.  Create a new file named `.env`.
+3.  Add the following variables to the `.env` file, replacing the placeholder values with your actual keys:
 
-Create a new file named .env.
+    ```env
+    # Spotify API Credentials
+    SPOTIFY_CLIENT_ID=your_spotify_client_id
+    SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+    SPOTIFY_REDIRECT_URI=[http://127.0.0.1:8888/api/auth/callback](http://127.0.0.1:8888/api/auth/callback)
+    
+    # Google Gemini API Key
+    GEMINI_API_KEY=your_google_gemini_api_key
+    
+    # Frontend URI for local development
+    FRONTEND_URI=[http://127.0.0.1:3000](http://127.0.0.1:3000)
+    ```
 
-Add the following variables to the .env file, replacing the placeholder values with your actual keys:
+### 3. Install Dependencies
 
-# Spotify API Credentials
-SPOTIFY_CLIENT_ID=your_spotify_client_id
-SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
-SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/api/auth/callback
-
-# Google Gemini API Key
-GEMINI_API_KEY=your_google_gemini_api_key
-
-# Frontend URI for local development
-FRONTEND_URI=http://127.0.0.1:3000
-
-3. Install Dependencies
 You will need to install dependencies for both the backend and frontend separately.
 
-For the backend:
+* **For the backend:**
 
-cd server
-npm install
+    ```bash
+    cd server
+    npm install
+    ```
 
-For the frontend:
+* **For the frontend:**
 
-cd ../client
-npm install
+    ```bash
+    cd ../client
+    npm install
+    ```
 
-4. Run the Application
+### 4. Run the Application
+
 You will need two separate terminal windows to run the application.
 
-In your first terminal, start the backend server:
+* **In your first terminal, start the backend server:**
 
-# Make sure you are in the /server directory
-node server.js
+    ```bash
+    # Make sure you are in the /server directory
+    node server.js
+    ```
+    *Your server should now be running at `http://127.0.0.1:8888`.*
 
-Your server should now be running at http://127.0.0.1:8888.
+* **In your second terminal, start the frontend client:**
 
-In your second terminal, start the frontend client:
+    ```bash
+    # Make sure you are in the /client directory
+    npm start
+    ```
+    *This will automatically open your browser to `http://127.0.0.1:3000` where the app will be running.*
 
-# Make sure you are in the /client directory
-npm start
+---
 
-This will automatically open your browser to http://127.0.0.1:3000 where the app will be running.
+## 🌟 Acknowledgements
 
-🌟 Acknowledgements
 This project was a great learning experience in full-stack development, third-party API integration, and modern deployment practices.
